@@ -67,6 +67,7 @@ class AutoScan(QDialog):
         """
         多线程优化的设备扫描方法
         """
+        self.ui.tableWidget.setRowCount(0)
         try:
             hostname = socket.gethostname()
             local_ip = socket.gethostbyname(hostname)
@@ -290,12 +291,11 @@ class MainWindow(QMainWindow):
                     self.t2 = threading.Thread(target=self.ESPPingPong)  # Ping-Pong线程初始化
                     self.t2.daemon = True  # Ping-Pong线程修改成守护线程
                     self.t2.start()
-                elif data == "Pong":
+                elif data.startswith("+"):
+                    RSSI = data[1:]
                     self.PongTime = datetime.datetime.now()
                     self.isGetPong = True
                     self.pause.set()
-                elif data.startswith("+"):
-                    RSSI = data[1:]
                     self.ui.label_24.setText(f'{RSSI}dBm')
                     if -51 <= int(RSSI) <= 0:
                         self.ui.label_24.setStyleSheet("color: rgb(0, 255, 0);")
@@ -308,11 +308,15 @@ class MainWindow(QMainWindow):
                         self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_0.png"))
             except OSError as e:
                 print("4" + str(e))
+            except socket.error as e:
+                print(f"Socket error: {e}")
+            except Exception as e:
+                print(f"Unexpected error: {e}")
 
     def ESPPingPong(self):
         while self.isESPConnected:
             self.isGetPong = False
-            self.ESPSend(data="Ping")
+            self.ESPSend(data="RSSI")
             start_time = datetime.datetime.now()
             self.pause = threading.Event()
             self.pause.wait()
@@ -335,8 +339,7 @@ class MainWindow(QMainWindow):
                 self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_0.png"))
                 self.ui.label_24.setText("-99dBm")
                 self.ui.label_24.setStyleSheet("color: rgb(255, 0, 0);")
-            self.ESPSend(data="RSSI")
-            time.sleep(5)
+            time.sleep(3)
 
     def ShowAutoScan(self):
         dialog = AutoScan()
