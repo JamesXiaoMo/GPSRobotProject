@@ -1,0 +1,15 @@
+<RCC>
+  <qresource prefix="images">
+    <file>assets/images/controller.png</file>
+    <file>assets/images/error.png</file>
+    <file>assets/images/radar.png</file>
+    <file>assets/images/wifi_0.png</file>
+    <file>assets/images/wifi_1.png</file>
+    <file>assets/images/wifi_2.png</file>
+    <file>assets/images/cogwheel.png</file>
+    <file>assets/images/satellite.png</file>
+    <file>assets/images/ip-address.png</file>
+    <file>assets/images/images.png</file>
+    <file>assets/images/icon.png</file>
+  </qresource>
+</RCC>
