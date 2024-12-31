@@ -19,6 +19,9 @@ from windows.ControllerSettingsUI import Ui_ControllerSettings
 
 
 class AboutSoftware(QDialog):
+    """
+    “关于软件”弹窗类
+    """
     def __init__(self):
         super().__init__()
         self.ui = Ui_AboutSoftware()
@@ -27,7 +30,7 @@ class AboutSoftware(QDialog):
 
 def ShowAboutSoftwareDialog():
     """
-    显示有关软件窗口
+    显示“关于软件”窗口的槽
     :return:
     """
     dialog = AboutSoftware()
@@ -50,6 +53,9 @@ def scan_ip(target_ip, port=7769, timeout=2):
 
 
 class AutoScan(QDialog):
+    """
+    ”自动扫描“弹窗类
+    """
     def __init__(self):
         super().__init__()
         self.ui = Ui_AutoScan()
@@ -114,6 +120,9 @@ class AutoScan(QDialog):
 
 
 class ConnectError(QDialog):
+    """
+        ”连接错误“弹窗类
+    """
     def __init__(self):
         super().__init__()
         self.ui = Ui_ConnectError()
@@ -121,6 +130,9 @@ class ConnectError(QDialog):
 
 
 class ControllerSettings(QDialog):
+    """
+        ”手柄设置“弹窗类
+    """
     def __init__(self):
         super().__init__()
         self.ui = Ui_ControllerSettings()
@@ -128,6 +140,10 @@ class ControllerSettings(QDialog):
 
 
 def ShowControllerSettings():
+    """
+        显示“手柄控制”窗口的槽
+        :return:
+    """
     dialog = ControllerSettings()
     dialog.exec()
 
@@ -139,10 +155,10 @@ class MainWindow(QMainWindow):
         self.isESPConnected = False  # ESP是否连接
         self.isGetPong = False  # 是否接收到Pong
         self.PongTime = None  # 接收到Pong的时间戳
-        self.TCP_SOCKET = None
-        self.t1 = None
-        self.t2 = None
-        self.pause = None
+        self.TCP_SOCKET = None  # Socket对象
+        self.t1 = None  # t1线程用于TCP收信
+        self.t2 = None  # t2线程用于Ping-Pong
+        self.pause = None   # t1和t2共享Event用于计算网络延迟时间
         self.ui = Ui_MainWindow()  # 创建界面实例
         self.ui.setupUi(self)  # 初始化界面
         self.ui.webEngineView.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)  #
@@ -234,6 +250,10 @@ class MainWindow(QMainWindow):
             self.ui.action.setText("全画面表示")
 
     def ESPConnect(self):
+        """
+        连接ESP芯片
+        :return:
+        """
         if not self.isESPConnected:
             try:
                 self.TCP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP连接对象
@@ -269,6 +289,11 @@ class MainWindow(QMainWindow):
             self.ui.label_24.setStyleSheet("color: rgb(255, 0, 0);")
 
     def ESPSend(self, data: str):
+        """
+        向ESP芯片发送数据
+        :param data: 数据
+        :return:
+        """
         if self.isESPConnected:
             try:
                 self.TCP_SOCKET.sendall(data.encode('utf-8'))
@@ -277,6 +302,10 @@ class MainWindow(QMainWindow):
             print(f'>>> {data}')
 
     def ESPListen(self):
+        """
+        监听ESP芯片的数据
+        :return:
+        """
         while self.isESPConnected:
             try:
                 data = self.TCP_SOCKET.recv(1024).decode('utf-8').strip('\n')
@@ -314,6 +343,10 @@ class MainWindow(QMainWindow):
                 print(f"Unexpected error: {e}")
 
     def ESPPingPong(self):
+        """
+        Ping-Pong
+        :return:
+        """
         while self.isESPConnected:
             self.isGetPong = False
             self.ESPSend(data="RSSI")
@@ -342,6 +375,10 @@ class MainWindow(QMainWindow):
             time.sleep(3)
 
     def ShowAutoScan(self):
+        """
+        ”自动扫描“弹窗的槽
+        :return:
+        """
         dialog = AutoScan()
         if dialog.exec() == QDialog.Accepted:
             ip = dialog.GetIP()
@@ -350,6 +387,10 @@ class MainWindow(QMainWindow):
             self.ui.pushButton_4.click()
 
     def ShowConnectError(self):
+        """
+        ”连接失败“弹窗的槽
+        :return:
+        """
         dialog = ConnectError()
         dialog.exec()
         self.ui.lineEdit.setText("")
