@@ -14,8 +14,8 @@
    <string>接続エラー</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../resources.qrc">
-    <normaloff>:/images/assets/images/error.png</normaloff>:/images/assets/images/error.png</iconset>
+   <iconset>
+    <normaloff>:/images/images/error.png</normaloff>:/images/images/error.png</iconset>
   </property>
   <widget class="QLabel" name="label">
    <property name="geometry">
@@ -45,7 +45,7 @@
   </widget>
  </widget>
  <resources>
-  <include location="../resources.qrc"/>
+  <include location="resources.qrc"/>
  </resources>
  <connections>
   <connection>

@@ -14,8 +14,8 @@
    <string>ソフトウェアについて</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../resources.qrc">
-    <normaloff>:/images/assets/images/icon.png</normaloff>:/images/assets/images/icon.png</iconset>
+   <iconset>
+    <normaloff>:/images/images/icon.png</normaloff>:/images/images/icon.png</iconset>
   </property>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
@@ -46,7 +46,7 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap resource="../resources.qrc">:/images/assets/images/icon.png</pixmap>
+    <pixmap>:/images/images/icon.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
@@ -130,7 +130,8 @@
   </widget>
  </widget>
  <resources>
-  <include location="../resources.qrc"/>
+  <include location="resources.qrc"/>
+  <include location="../assets/resources.qrc"/>
  </resources>
  <connections>
   <connection>

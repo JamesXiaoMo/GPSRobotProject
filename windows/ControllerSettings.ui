@@ -14,12 +14,12 @@
    <string>コントローラーの設定</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../resources.qrc">
-    <normaloff>:/images/assets/images/controller.png</normaloff>:/images/assets/images/controller.png</iconset>
+   <iconset>
+    <normaloff>:/images/images/controller.png</normaloff>:/images/images/controller.png</iconset>
   </property>
  </widget>
  <resources>
-  <include location="../resources.qrc"/>
+  <include location="resources.qrc"/>
  </resources>
  <connections/>
 </ui>

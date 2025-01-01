@@ -5,7 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import requests.exceptions
-from PySide6.QtCore import QUrl, QTimer
+from PySide6.QtCore import QUrl, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QHeaderView, QTableWidgetItem
@@ -22,6 +22,7 @@ class AboutSoftware(QDialog):
     """
     “关于软件”弹窗类
     """
+
     def __init__(self):
         super().__init__()
         self.ui = Ui_AboutSoftware()
@@ -56,6 +57,7 @@ class AutoScan(QDialog):
     """
     ”自动扫描“弹窗类
     """
+
     def __init__(self):
         super().__init__()
         self.ui = Ui_AutoScan()
@@ -83,7 +85,6 @@ class AutoScan(QDialog):
 
             with ThreadPoolExecutor(max_workers=50) as executor:
                 futures = {executor.submit(scan_ip, f"{network}{i}"): i for i in range(1, 255)}
-
                 for future in futures:
                     ip_index = futures[future]
                     try:
@@ -123,6 +124,7 @@ class ConnectError(QDialog):
     """
         ”连接错误“弹窗类
     """
+
     def __init__(self):
         super().__init__()
         self.ui = Ui_ConnectError()
@@ -133,6 +135,7 @@ class ControllerSettings(QDialog):
     """
         ”手柄设置“弹窗类
     """
+
     def __init__(self):
         super().__init__()
         self.ui = Ui_ControllerSettings()
@@ -149,6 +152,10 @@ def ShowControllerSettings():
 
 
 class MainWindow(QMainWindow):
+    Update_Connect_Status = Signal(bool)
+    Update_RSSI = Signal(str)
+    Update_Interval = Signal(int)
+
     def __init__(self):
         super().__init__()
         self.ManualControl = False  # 是否启用手动控制
@@ -158,7 +165,7 @@ class MainWindow(QMainWindow):
         self.TCP_SOCKET = None  # Socket对象
         self.t1 = None  # t1线程用于TCP收信
         self.t2 = None  # t2线程用于Ping-Pong
-        self.pause = None   # t1和t2共享Event用于计算网络延迟时间
+        self.pause = None  # t1和t2共享Event用于计算网络延迟时间
         self.ui = Ui_MainWindow()  # 创建界面实例
         self.ui.setupUi(self)  # 初始化界面
         self.ui.webEngineView.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)  #
@@ -184,6 +191,9 @@ class MainWindow(QMainWindow):
         self.ui.action_4.triggered.connect(ShowAboutSoftwareDialog)
         self.ui.pushButton_5.clicked.connect(self.ShowAutoScan)
         self.ui.action_3.triggered.connect(ShowControllerSettings)
+        self.Update_Connect_Status.connect(self.UpdateConnectStatus)
+        self.Update_RSSI.connect(self.UpdateRSSI)
+        self.Update_Interval.connect(self.UpdateInterval)
 
     def SliderDataUpdate(self, no):
         """
@@ -276,17 +286,7 @@ class MainWindow(QMainWindow):
                 self.ESPSend(data="Connect")
         else:
             self.TCP_SOCKET.close()
-            self.ui.lineEdit.setEnabled(True)
-            self.ui.lineEdit_2.setEnabled(True)
-            self.ui.pushButton_4.setText("接続する")
-            self.isESPConnected = False
-            self.ui.label_21.setText("未接続")
-            self.ui.label_21.setStyleSheet("color: rgb(255, 0, 0);")
-            self.ui.label_22.setText('9999ms')
-            self.ui.label_22.setStyleSheet("color: rgb(255, 0, 0);")
-            self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_0.png"))
-            self.ui.label_24.setText("-99dBm")
-            self.ui.label_24.setStyleSheet("color: rgb(255, 0, 0);")
+            self.Update_Connect_Status.emit(False)
 
     def ESPSend(self, data: str):
         """
@@ -294,7 +294,7 @@ class MainWindow(QMainWindow):
         :param data: 数据
         :return:
         """
-        if self.isESPConnected:
+        if self.isESPConnected and self.TCP_SOCKET:
             try:
                 self.TCP_SOCKET.sendall(data.encode('utf-8'))
             except OSError as e:
@@ -308,35 +308,25 @@ class MainWindow(QMainWindow):
         """
         while self.isESPConnected:
             try:
-                data = self.TCP_SOCKET.recv(1024).decode('utf-8').strip('\n')
-                if not data:
-                    print("ESP closed connection")
-
-                print(f'<<< {data}')
-                if data == "ConnectOK":
-                    print("Connect successfully")
-                    self.ui.label_21.setText("接続済み")
-                    self.ui.label_21.setStyleSheet("color: rgb(0, 255, 0);")
-                    self.t2 = threading.Thread(target=self.ESPPingPong)  # Ping-Pong线程初始化
-                    self.t2.daemon = True  # Ping-Pong线程修改成守护线程
-                    self.t2.start()
-                elif data.startswith("+"):
-                    RSSI = data[1:]
-                    self.PongTime = datetime.datetime.now()
-                    self.isGetPong = True
-                    self.pause.set()
-                    self.ui.label_24.setText(f'{RSSI}dBm')
-                    if -51 <= int(RSSI) <= 0:
-                        self.ui.label_24.setStyleSheet("color: rgb(0, 255, 0);")
-                        self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_2.png"))
-                    elif -70 <= int(RSSI) < -51:
-                        self.ui.label_24.setStyleSheet("color: rgb(255, 255, 0);")
-                        self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_1.png"))
-                    else:
-                        self.ui.label_24.setStyleSheet("color: rgb(255, 0, 0);")
-                        self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_0.png"))
+                data = self.TCP_SOCKET.recv(1024).decode('utf-8').strip('\n').strip('\r')
+                if data:
+                    print(f'<<< {data}')
+                    if data == "ConnectOK":
+                        print("Connect successfully")
+                        self.Update_Connect_Status.emit(True)
+                        self.t2 = threading.Thread(target=self.ESPPingPong)  # Ping-Pong线程初始化
+                        self.t2.daemon = True  # Ping-Pong线程修改成守护线程
+                        self.t2.start()
+                    elif data.startswith("+"):
+                        RSSI = data[1:]
+                        self.isGetPong = True
+                        self.PongTime = datetime.datetime.now()
+                        self.pause.set()
+                        self.Update_RSSI.emit(RSSI)
             except OSError as e:
                 print("4" + str(e))
+                self.isESPConnected = False
+                self.TCP_SOCKET.close()
             except socket.error as e:
                 print(f"Socket error: {e}")
             except Exception as e:
@@ -348,30 +338,16 @@ class MainWindow(QMainWindow):
         :return:
         """
         while self.isESPConnected:
-            self.isGetPong = False
             self.ESPSend(data="RSSI")
             start_time = datetime.datetime.now()
             self.pause = threading.Event()
             self.pause.wait()
             Interval = int((self.PongTime - start_time).total_seconds() * 1000)
-            if self.isGetPong and self.isESPConnected:
-                self.ui.label_22.setText(f'{Interval} ms')
-                if 0 <= Interval <= 1000:
-                    self.ui.label_22.setStyleSheet("color: rgb(0, 255, 0);")
-                elif 1000 < Interval <= 2000:
-                    self.ui.label_22.setStyleSheet("color: rgb(255, 255, 0);")
-                else:
-                    self.ui.label_22.setStyleSheet("color: rgb(255, 0, 0);")
-            elif not self.isGetPong:
-                self.ui.pushButton_4.setText("接続する")
-                self.isESPConnected = False
-                self.ui.label_21.setText("未接続")
-                self.ui.label_21.setStyleSheet("color: rgb(255, 0, 0);")
-                self.ui.label_22.setText('999ms')
-                self.ui.label_22.setStyleSheet("color: rgb(255, 0, 0);")
-                self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_0.png"))
-                self.ui.label_24.setText("-99dBm")
-                self.ui.label_24.setStyleSheet("color: rgb(255, 0, 0);")
+            if self.isGetPong:
+                self.Update_Interval.emit(Interval)
+            else:
+                self.Update_Connect_Status.emit(False)
+            self.isGetPong = False
             time.sleep(3)
 
     def ShowAutoScan(self):
@@ -395,6 +371,44 @@ class MainWindow(QMainWindow):
         dialog.exec()
         self.ui.lineEdit.setText("")
         self.ui.lineEdit_2.setText("")
+
+    def UpdateConnectStatus(self, isConnected: bool):
+        if isConnected:
+            self.ui.label_21.setText("接続済み")
+            self.ui.label_21.setStyleSheet("color: rgb(0, 255, 0);")
+        else:
+            self.ui.lineEdit.setEnabled(True)
+            self.ui.lineEdit_2.setEnabled(True)
+            self.ui.pushButton_4.setText("接続する")
+            self.isESPConnected = False
+            self.ui.label_21.setText("未接続")
+            self.ui.label_21.setStyleSheet("color: rgb(255, 0, 0);")
+            self.ui.label_22.setText('9999ms')
+            self.ui.label_22.setStyleSheet("color: rgb(255, 0, 0);")
+            self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_0.png"))
+            self.ui.label_24.setText("-99dBm")
+            self.ui.label_24.setStyleSheet("color: rgb(255, 0, 0);")
+
+    def UpdateRSSI(self, RSSI: str):
+        self.ui.label_24.setText(f'{RSSI}dBm')
+        if -51 <= int(RSSI) <= 0:
+            self.ui.label_24.setStyleSheet("color: rgb(0, 255, 0);")
+            self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_2.png"))
+        elif -70 <= int(RSSI) < -51:
+            self.ui.label_24.setStyleSheet("color: rgb(255, 255, 0);")
+            self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_1.png"))
+        else:
+            self.ui.label_24.setStyleSheet("color: rgb(255, 0, 0);")
+            self.ui.label_23.setPixmap(QPixmap(u":/images/assets/images/wifi_0.png"))
+
+    def UpdateInterval(self, Interval: int):
+        self.ui.label_22.setText(f'{Interval} ms')
+        if 0 <= Interval <= 1000:
+            self.ui.label_22.setStyleSheet("color: rgb(0, 255, 0);")
+        elif 1000 < Interval <= 2000:
+            self.ui.label_22.setStyleSheet("color: rgb(255, 255, 0);")
+        else:
+            self.ui.label_22.setStyleSheet("color: rgb(255, 0, 0);")
 
 
 app = QApplication([])
