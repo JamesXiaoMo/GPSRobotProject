@@ -4,7 +4,6 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 import pygame
-import pygame._sdl2.controller as controller
 
 import requests.exceptions
 from PySide6.QtCore import QUrl, QTimer, Signal
