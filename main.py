@@ -3,6 +3,8 @@ import socket
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+import pygame
+import pygame._sdl2.controller as controller
 
 import requests.exceptions
 from PySide6.QtCore import QUrl, QTimer, Signal
@@ -136,19 +138,27 @@ class ControllerSettings(QDialog):
         ”手柄设置“弹窗类
     """
 
-    def __init__(self):
+    def __init__(self, main_window):
         super().__init__()
         self.ui = Ui_ControllerSettings()
         self.ui.setupUi(self)
+        self.main_window = main_window
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update)
+        self.timer.start(100)
 
+    def update(self):
+        if self.main_window.isControllerConnected:
+            self.ui.label_2.setText(self.main_window.ControllerName)
+            self.ui.label_2.setStyleSheet("color: rgb(255, 255, 255);")
 
-def ShowControllerSettings():
-    """
-        显示“手柄控制”窗口的槽
-        :return:
-    """
-    dialog = ControllerSettings()
-    dialog.exec()
+            self.ui.label_4.setText(f'{self.main_window.FrontBackAxis}%')
+            self.ui.label_6.setText(f'{self.main_window.LeftRightAxis}%')
+        else:
+            self.ui.label_2.setText("未接続")
+            self.ui.label_2.setStyleSheet("color: red")
+            self.ui.label_4.setText('0%')
+            self.ui.label_6.setText('0%')
 
 
 class MainWindow(QMainWindow):
@@ -160,11 +170,21 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.ManualControl = False  # 是否启用手动控制
         self.isESPConnected = False  # ESP是否连接
+
+        self.isControllerConnected = False
+        self.ControllerName = None
+        self.controllers = []
+        self.FrontBackAxis = 0
+        self.LeftRightAxis = 0
+
         self.isGetPong = False  # 是否接收到Pong
         self.PongTime = None  # 接收到Pong的时间戳
         self.TCP_SOCKET = None  # Socket对象
         self.t1 = None  # t1线程用于TCP收信
         self.t2 = None  # t2线程用于Ping-Pong
+        self.t3 = threading.Thread(target=self.ControllerOperation)
+        self.t3.daemon = True
+        self.t3.start()
         self.pause = None  # t1和t2共享Event用于计算网络延迟时间
         self.ui = Ui_MainWindow()  # 创建界面实例
         self.ui.setupUi(self)  # 初始化界面
@@ -190,7 +210,7 @@ class MainWindow(QMainWindow):
         self.ui.action.triggered.connect(self.SwitchFullScreen)
         self.ui.action_4.triggered.connect(ShowAboutSoftwareDialog)
         self.ui.pushButton_5.clicked.connect(self.ShowAutoScan)
-        self.ui.action_3.triggered.connect(ShowControllerSettings)
+        self.ui.action_3.triggered.connect(self.ShowControllerSettings)
         self.Update_Connect_Status.connect(self.UpdateConnectStatus)
         self.Update_RSSI.connect(self.UpdateRSSI)
         self.Update_Interval.connect(self.UpdateInterval)
@@ -326,7 +346,6 @@ class MainWindow(QMainWindow):
             except OSError as e:
                 print("4" + str(e))
                 self.isESPConnected = False
-                self.TCP_SOCKET.close()
             except socket.error as e:
                 print(f"Socket error: {e}")
             except Exception as e:
@@ -372,6 +391,14 @@ class MainWindow(QMainWindow):
         self.ui.lineEdit.setText("")
         self.ui.lineEdit_2.setText("")
 
+    def ShowControllerSettings(self):
+        """
+            显示“手柄控制”窗口的槽
+            :return:
+        """
+        dialog = ControllerSettings(main_window=self)
+        dialog.exec()
+
     def UpdateConnectStatus(self, isConnected: bool):
         if isConnected:
             self.ui.label_21.setText("接続済み")
@@ -409,6 +436,43 @@ class MainWindow(QMainWindow):
             self.ui.label_22.setStyleSheet("color: rgb(255, 255, 0);")
         else:
             self.ui.label_22.setStyleSheet("color: rgb(255, 0, 0);")
+
+    def ControllerOperation(self):
+        pygame.init()
+        pygame.joystick.init()
+
+        while True:
+            if pygame.joystick.get_count() != 0:
+                for i in range(pygame.joystick.get_count()):
+                    joystick = pygame.joystick.Joystick(i)
+                    joystick.init()
+                    print(f"Joystick {i}: {joystick.get_name()} initialized")
+                    self.ControllerName = joystick.get_name()
+                self.isControllerConnected = True
+            else:
+                try:
+                    pygame.joystick.init()
+                except pygame.error:
+                    print("joystick error")
+                self.isControllerConnected = False
+                self.ControllerName = None
+            while pygame.joystick.get_count() != 0:
+                for event in pygame.event.get():
+                    if event.type == pygame.JOYBUTTONDOWN:
+                        print(f"Button {event.button} pressed on joystick {event.joy}")
+                    elif event.type == pygame.JOYAXISMOTION:
+                        if event.axis == 1:
+                            axis_data = int(event.value * -100)
+                            if -10 < axis_data < 10:
+                                axis_data = 0
+                            self.FrontBackAxis = axis_data
+                        if event.axis == 2:
+                            axis_data = int(event.value * -100)
+                            if -10 < axis_data < 10:
+                                axis_data = 0
+                            self.LeftRightAxis = axis_data
+                pygame.time.wait(10)
+            time.sleep(1)
 
 
 app = QApplication([])

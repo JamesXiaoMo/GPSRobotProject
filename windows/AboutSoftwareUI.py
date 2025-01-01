@@ -18,6 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QDialog, QDialogButtonBox,
     QLabel, QSizePolicy, QWidget)
 import resources_rc
+import resources_rc
 
 class Ui_AboutSoftware(object):
     def setupUi(self, AboutSoftware):
@@ -52,11 +53,11 @@ class Ui_AboutSoftware(object):
         self.label_4.setWordWrap(True)
         self.label_5 = QLabel(AboutSoftware)
         self.label_5.setObjectName(u"label_5")
-        self.label_5.setGeometry(QRect(80, 165, 231, 16))
+        self.label_5.setGeometry(QRect(70, 155, 231, 16))
         self.label_5.setWordWrap(False)
         self.label_6 = QLabel(AboutSoftware)
         self.label_6.setObjectName(u"label_6")
-        self.label_6.setGeometry(QRect(100, 180, 191, 16))
+        self.label_6.setGeometry(QRect(90, 170, 191, 16))
 
         self.retranslateUi(AboutSoftware)
         self.buttonBox.accepted.connect(AboutSoftware.accept)
