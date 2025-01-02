@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import socket
 import threading
@@ -6,17 +7,18 @@ from concurrent.futures import ThreadPoolExecutor
 import pygame
 
 import requests.exceptions
-from PySide6.QtCore import QUrl, QTimer, Signal
+from PySide6.QtCore import QUrl, QTimer, Signal, QEvent
 from PySide6.QtGui import QPixmap
 from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QHeaderView, QTableWidgetItem
 
 from MainWindowsUI import Ui_MainWindow
-from lib import GetIPLocationInfo, GenerateGIS
+from lib import GetIPLocationInfo, GenerateGIS, BLE
 from windows.AboutSoftwareUI import Ui_AboutSoftware
 from windows.AutoScanUI import Ui_AutoScan
 from windows.ConnectErrorUI import Ui_ConnectError
 from windows.ControllerSettingsUI import Ui_ControllerSettings
+from windows.BLEUI import Ui_BLE
 
 
 class AboutSoftware(QDialog):
@@ -160,6 +162,18 @@ class ControllerSettings(QDialog):
             self.ui.label_6.setText('0%')
 
 
+class BLEDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.ui = Ui_BLE()
+        self.ui.setupUi(self)
+
+
+def ShowBLE():
+    dialog = BLEDialog()
+    dialog.exec()
+
+
 class MainWindow(QMainWindow):
     Update_Connect_Status = Signal(bool)
     Update_RSSI = Signal(str)
@@ -208,11 +222,13 @@ class MainWindow(QMainWindow):
         self.ui.pushButton_4.clicked.connect(self.ESPConnect)
         self.ui.action.triggered.connect(self.SwitchFullScreen)
         self.ui.action_4.triggered.connect(ShowAboutSoftwareDialog)
+        self.ui.action_2.triggered.connect(self.close)
         self.ui.pushButton_5.clicked.connect(self.ShowAutoScan)
         self.ui.action_3.triggered.connect(self.ShowControllerSettings)
         self.Update_Connect_Status.connect(self.UpdateConnectStatus)
         self.Update_RSSI.connect(self.UpdateRSSI)
         self.Update_Interval.connect(self.UpdateInterval)
+        self.ui.pushButton_6.clicked.connect(ShowBLE)
 
     def SliderDataUpdate(self, no):
         """
@@ -449,12 +465,15 @@ class MainWindow(QMainWindow):
                     self.ControllerName = joystick.get_name()
                 self.isControllerConnected = True
             else:
-                try:
-                    pygame.joystick.init()
-                except pygame.error:
-                    print("joystick error")
                 self.isControllerConnected = False
                 self.ControllerName = None
+                for event in pygame.event.get():
+                    if event.type == pygame.JOYDEVICEADDED:
+                        joystick = pygame.joystick.Joystick(event.device_index)
+                        joystick.init()
+                        self.ControllerName = joystick.get_name()
+                        self.isControllerConnected = True
+                        print(f"New joystick connected: {self.ControllerName}")
             while pygame.joystick.get_count() != 0:
                 for event in pygame.event.get():
                     if event.type == pygame.JOYBUTTONDOWN:
@@ -474,7 +493,8 @@ class MainWindow(QMainWindow):
             time.sleep(1)
 
 
-app = QApplication([])
-window = MainWindow()
-window.show()
-app.exec()
+if __name__ == '__main__':
+    app = QApplication([])
+    window = MainWindow()
+    window.show()
+    app.exec()

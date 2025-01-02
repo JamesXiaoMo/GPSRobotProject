@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="images">
+    <file>assets/images/bluetooth.png</file>
     <file>assets/images/controller.png</file>
     <file>assets/images/error.png</file>
     <file>assets/images/radar.png</file>
