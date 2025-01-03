@@ -1,19 +1,19 @@
-import asyncio
 import datetime
 import socket
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+
 import pygame
 
 import requests.exceptions
-from PySide6.QtCore import QUrl, QTimer, Signal, QEvent
+from PySide6.QtCore import QUrl, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QHeaderView, QTableWidgetItem
 
 from MainWindowsUI import Ui_MainWindow
-from lib import GetIPLocationInfo, GenerateGIS, BLE
+from lib import GetIPLocationInfo, GenerateGIS
 from windows.AboutSoftwareUI import Ui_AboutSoftware
 from windows.AutoScanUI import Ui_AutoScan
 from windows.ConnectErrorUI import Ui_ConnectError
@@ -178,6 +178,8 @@ class MainWindow(QMainWindow):
     Update_Connect_Status = Signal(bool)
     Update_RSSI = Signal(str)
     Update_Interval = Signal(int)
+    Update_Command_Line = Signal(str)
+    Send_Command = Signal()
 
     def __init__(self):
         super().__init__()
@@ -228,6 +230,9 @@ class MainWindow(QMainWindow):
         self.Update_Connect_Status.connect(self.UpdateConnectStatus)
         self.Update_RSSI.connect(self.UpdateRSSI)
         self.Update_Interval.connect(self.UpdateInterval)
+        self.Update_Command_Line.connect(self.UpdateCommandLine)
+        self.Send_Command.connect(self.SendCommand)
+        self.ui.pushButton_7.clicked.connect(self.Send_Command)
         self.ui.pushButton_6.clicked.connect(ShowBLE)
 
     def SliderDataUpdate(self, no):
@@ -302,7 +307,7 @@ class MainWindow(QMainWindow):
         if not self.isESPConnected:
             try:
                 self.TCP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP连接对象
-                self.TCP_SOCKET.settimeout(5)
+                self.TCP_SOCKET.settimeout(10)
                 self.TCP_SOCKET.connect((str(self.ui.lineEdit.text()), int(self.ui.lineEdit_2.text())))
             except WindowsError as e:
                 print("2" + str(e))
@@ -331,10 +336,11 @@ class MainWindow(QMainWindow):
         """
         if self.isESPConnected and self.TCP_SOCKET:
             try:
-                self.TCP_SOCKET.sendall(data.encode('utf-8'))
+                self.TCP_SOCKET.sendall((data + '\n').encode('utf-8'))
             except OSError as e:
                 print("3" + str(e))
             print(f'>>> {data}')
+            self.Update_Command_Line.emit(f'>>> {data}')
 
     def ESPListen(self):
         """
@@ -346,8 +352,10 @@ class MainWindow(QMainWindow):
                 data = self.TCP_SOCKET.recv(1024).decode('utf-8').strip('\n').strip('\r')
                 if data:
                     print(f'<<< {data}')
+                    self.Update_Command_Line.emit(f'<<< {data}')
                     if data == "ConnectOK":
                         print("Connect successfully")
+                        self.Update_Command_Line.emit("### EPS connect successfully!!")
                         self.Update_Connect_Status.emit(True)
                         self.t2 = threading.Thread(target=self.ESPPingPong)  # Ping-Pong线程初始化
                         self.t2.daemon = True  # Ping-Pong线程修改成守护线程
@@ -360,7 +368,7 @@ class MainWindow(QMainWindow):
                         self.Update_RSSI.emit(RSSI)
             except OSError as e:
                 print("4" + str(e))
-                self.isESPConnected = False
+                self.Update_Connect_Status.emit(False)
             except socket.error as e:
                 print(f"Socket error: {e}")
             except Exception as e:
@@ -382,7 +390,7 @@ class MainWindow(QMainWindow):
             else:
                 self.Update_Connect_Status.emit(False)
             self.isGetPong = False
-            time.sleep(3)
+            time.sleep(5)
 
     def ShowAutoScan(self):
         """
@@ -423,6 +431,7 @@ class MainWindow(QMainWindow):
             self.ui.lineEdit_2.setEnabled(True)
             self.ui.pushButton_4.setText("接続する")
             self.isESPConnected = False
+            self.Update_Command_Line.emit("### ESP disconnected!!")
             self.ui.label_21.setText("未接続")
             self.ui.label_21.setStyleSheet("color: rgb(255, 0, 0);")
             self.ui.label_22.setText('9999ms')
@@ -462,6 +471,7 @@ class MainWindow(QMainWindow):
                     joystick = pygame.joystick.Joystick(i)
                     joystick.init()
                     print(f"Joystick {i}: {joystick.get_name()} initialized")
+                    self.Update_Command_Line.emit(f"### Joystick {i}: {joystick.get_name()} initialized")
                     self.ControllerName = joystick.get_name()
                 self.isControllerConnected = True
             else:
@@ -474,6 +484,7 @@ class MainWindow(QMainWindow):
                         self.ControllerName = joystick.get_name()
                         self.isControllerConnected = True
                         print(f"New joystick connected: {self.ControllerName}")
+                        self.Update_Command_Line.emit(f"New joystick connected: {self.ControllerName}")
             while pygame.joystick.get_count() != 0:
                 for event in pygame.event.get():
                     if event.type == pygame.JOYBUTTONDOWN:
@@ -491,6 +502,15 @@ class MainWindow(QMainWindow):
                             self.LeftRightAxis = axis_data
                 pygame.time.wait(10)
             time.sleep(1)
+
+    def UpdateCommandLine(self, cmd: str):
+        self.ui.plainTextEdit.appendPlainText(f'{datetime.datetime.now().strftime("%H:%M:%S")}   {cmd}')
+
+    def SendCommand(self):
+        if self.ui.lineEdit_3.text() != "":
+            if self.isESPConnected:
+                self.ESPSend(data=self.ui.lineEdit_3.text())
+            self.ui.lineEdit_3.clear()
 
 
 if __name__ == '__main__':

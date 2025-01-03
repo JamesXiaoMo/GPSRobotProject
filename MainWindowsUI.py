@@ -19,8 +19,8 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
     QLCDNumber, QLabel, QLineEdit, QMainWindow,
-    QMenu, QMenuBar, QPushButton, QRadioButton,
-    QSizePolicy, QSlider, QWidget)
+    QMenu, QMenuBar, QPlainTextEdit, QPushButton,
+    QRadioButton, QSizePolicy, QSlider, QWidget)
 import resources_rc
 
 class Ui_MainWindow(object):
@@ -306,6 +306,16 @@ class Ui_MainWindow(object):
         self.pushButton_6 = QPushButton(self.centralwidget)
         self.pushButton_6.setObjectName(u"pushButton_6")
         self.pushButton_6.setGeometry(QRect(985, 0, 75, 24))
+        self.plainTextEdit = QPlainTextEdit(self.centralwidget)
+        self.plainTextEdit.setObjectName(u"plainTextEdit")
+        self.plainTextEdit.setGeometry(QRect(540, 30, 520, 241))
+        self.plainTextEdit.setReadOnly(True)
+        self.lineEdit_3 = QLineEdit(self.centralwidget)
+        self.lineEdit_3.setObjectName(u"lineEdit_3")
+        self.lineEdit_3.setGeometry(QRect(540, 276, 440, 20))
+        self.pushButton_7 = QPushButton(self.centralwidget)
+        self.pushButton_7.setObjectName(u"pushButton_7")
+        self.pushButton_7.setGeometry(QRect(980, 273, 81, 24))
         MainWindow.setCentralWidget(self.centralwidget)
         self.menuBar = QMenuBar(MainWindow)
         self.menuBar.setObjectName(u"menuBar")
@@ -374,6 +384,7 @@ class Ui_MainWindow(object):
 
         self.label_17.setText(QCoreApplication.translate("MainWindow", u"\u5730\u56f3\u306e\u4e2d\u5fc3\u8a2d\u5b9a", None))
         self.pushButton_6.setText(QCoreApplication.translate("MainWindow", u"BLE\u914d\u7db2", None))
+        self.pushButton_7.setText(QCoreApplication.translate("MainWindow", u"\u9001\u4fe1", None))
         self.menu.setTitle(QCoreApplication.translate("MainWindow", u"\u8a2d\u7f6e", None))
         self.menu_2.setTitle(QCoreApplication.translate("MainWindow", u"\u30a2\u30d0\u30a6\u30c8", None))
     # retranslateUi
