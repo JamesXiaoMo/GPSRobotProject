@@ -200,6 +200,7 @@ class MainWindow(QMainWindow):
         self.t3 = threading.Thread(target=self.ControllerOperation)
         self.t3.daemon = True
         self.t3.start()
+        self.t4 = None
         self.pause = None  # t1和t2共享Event用于计算网络延迟时间
         self.ui = Ui_MainWindow()  # 创建界面实例
         self.ui.setupUi(self)  # 初始化界面
@@ -247,8 +248,10 @@ class MainWindow(QMainWindow):
             self.ui.label_8.setText(str(self.ui.horizontalSlider_2.value()))
         elif no == 2:
             self.ui.label_15.setText(f'{str(self.ui.horizontalSlider_4.value())}%')
+            self.FrontBackAxis = self.ui.horizontalSlider_4.value()
         elif no == 3:
             self.ui.label_16.setText(f'{str(self.ui.horizontalSlider_3.value())}%')
+            self.LeftRightAxis = self.ui.horizontalSlider_3.value()
 
     def ManualControlUpdate(self):
         """
@@ -360,6 +363,9 @@ class MainWindow(QMainWindow):
                         self.t2 = threading.Thread(target=self.ESPPingPong)  # Ping-Pong线程初始化
                         self.t2.daemon = True  # Ping-Pong线程修改成守护线程
                         self.t2.start()
+                        self.t4 = threading.Thread(target=self.ESPSendControlData)
+                        self.t4.daemon = True
+                        self.t4.start()
                     elif data.startswith("+"):
                         RSSI = data[1:]
                         self.isGetPong = True
@@ -390,7 +396,17 @@ class MainWindow(QMainWindow):
             else:
                 self.Update_Connect_Status.emit(False)
             self.isGetPong = False
-            time.sleep(5)
+            time.sleep(4)
+
+    def ESPSendControlData(self):
+        LastFrontBackAxis = 0
+        LastLeftRightAxis = 0
+        while self.isESPConnected:
+            if LastFrontBackAxis != self.FrontBackAxis or LastLeftRightAxis != self.LeftRightAxis:
+                self.ESPSend(data=f"@{self.FrontBackAxis}|{self.LeftRightAxis}")
+                LastFrontBackAxis = self.FrontBackAxis
+                LastLeftRightAxis = self.LeftRightAxis
+            time.sleep(0.1)
 
     def ShowAutoScan(self):
         """
@@ -484,7 +500,7 @@ class MainWindow(QMainWindow):
                         self.ControllerName = joystick.get_name()
                         self.isControllerConnected = True
                         print(f"New joystick connected: {self.ControllerName}")
-                        self.Update_Command_Line.emit(f"New joystick connected: {self.ControllerName}")
+                        self.Update_Command_Line.emit(f"### New joystick connected: {self.ControllerName}")
             while pygame.joystick.get_count() != 0:
                 for event in pygame.event.get():
                     if event.type == pygame.JOYBUTTONDOWN:
@@ -494,12 +510,14 @@ class MainWindow(QMainWindow):
                             axis_data = int(event.value * -100)
                             if -10 < axis_data < 10:
                                 axis_data = 0
-                            self.FrontBackAxis = axis_data
+                            if not self.ManualControl:
+                                self.FrontBackAxis = axis_data
                         if event.axis == 2:
                             axis_data = int(event.value * -100)
                             if -10 < axis_data < 10:
                                 axis_data = 0
-                            self.LeftRightAxis = axis_data
+                            if not self.ManualControl:
+                                self.LeftRightAxis = axis_data
                 pygame.time.wait(10)
             time.sleep(1)
 
