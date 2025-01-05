@@ -2,176 +2,22 @@ import datetime
 import socket
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
-
 import pygame
-
 import requests.exceptions
+
 from PySide6.QtCore import QUrl, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWebEngineCore import QWebEngineSettings
-from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QHeaderView, QTableWidgetItem
+from PySide6.QtWidgets import QApplication, QMainWindow
+
+from lib import GetIPLocationInfo, GenerateGIS
 
 from MainWindowsUI import Ui_MainWindow
-from lib import GetIPLocationInfo, GenerateGIS
-from windows.AboutSoftwareUI import Ui_AboutSoftware
-from windows.AutoScanUI import Ui_AutoScan
-from windows.ConnectErrorUI import Ui_ConnectError
-from windows.ControllerSettingsUI import Ui_ControllerSettings
-from windows.BLEUI import Ui_BLE
-
-
-class AboutSoftware(QDialog):
-    """
-    “关于软件”弹窗类
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.ui = Ui_AboutSoftware()
-        self.ui.setupUi(self)
-
-
-def ShowAboutSoftwareDialog():
-    """
-    显示“关于软件”窗口的槽
-    :return:
-    """
-    dialog = AboutSoftware()
-    dialog.exec()
-
-
-def scan_ip(target_ip, port=7769, timeout=2):
-    """
-    扫描单个 IP 的指定端口是否开放
-    :param target_ip: 目标 IP 地址
-    :param port: 目标端口号
-    :param timeout: 超时时间
-    :return: (IP, 是否成功)
-    """
-    try:
-        with socket.create_connection((target_ip, port), timeout=timeout):
-            return target_ip  # 返回成功的 IP 地址
-    except (socket.timeout, socket.error):
-        return None  # 返回 None 表示失败
-
-
-class AutoScan(QDialog):
-    """
-    ”自动扫描“弹窗类
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.ui = Ui_AutoScan()
-        self.ui.setupUi(self)
-        self.ui.tableWidget.setColumnWidth(0, 240)
-        self.ui.tableWidget.setColumnWidth(1, 100)
-        self.ui.pushButton_2.setEnabled(False)
-        self.ui.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        self.ui.pushButton.clicked.connect(self.ScanDevices)
-        self.ui.tableWidget.itemSelectionChanged.connect(self.SelectIP)
-        self.ui.pushButton_2.clicked.connect(self.accept)
-        self.selectedIP = None
-
-    def ScanDevices(self):
-        """
-        多线程优化的设备扫描方法
-        """
-        self.ui.tableWidget.setRowCount(0)
-        try:
-            hostname = socket.gethostname()
-            local_ip = socket.gethostbyname(hostname)
-            ip_parts = local_ip.split('.')
-            network = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}."
-            devices = []
-
-            with ThreadPoolExecutor(max_workers=50) as executor:
-                futures = {executor.submit(scan_ip, f"{network}{i}"): i for i in range(1, 255)}
-                for future in futures:
-                    ip_index = futures[future]
-                    try:
-                        result = future.result()
-                        if result:
-                            devices.append(result)
-
-                            current_row = self.ui.tableWidget.rowCount()
-                            self.ui.tableWidget.insertRow(current_row)
-                            self.ui.tableWidget.setItem(current_row, 0, QTableWidgetItem(result))
-                            self.ui.tableWidget.setItem(current_row, 1, QTableWidgetItem(str(7769)))
-
-                        progress = int((ip_index / 254) * 100)
-                        self.ui.progressBar.setValue(progress)
-
-                    except Exception as e:
-                        print(e)
-        except Exception as e:
-            print(e)
-
-    def SelectIP(self):
-        selected_items = self.ui.tableWidget.selectedItems()
-        if selected_items:
-            item = selected_items[0]
-            row = item.row()
-            self.ui.pushButton_2.setEnabled(True)  # 启用按钮
-            ip_item = self.ui.tableWidget.item(row, 0)
-            self.selectedIP = ip_item.text()
-        else:
-            self.ui.pushButton_2.setEnabled(False)  # 禁用按钮
-
-    def GetIP(self):
-        return self.selectedIP
-
-
-class ConnectError(QDialog):
-    """
-        ”连接错误“弹窗类
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.ui = Ui_ConnectError()
-        self.ui.setupUi(self)
-
-
-class ControllerSettings(QDialog):
-    """
-        ”手柄设置“弹窗类
-    """
-
-    def __init__(self, main_window):
-        super().__init__()
-        self.ui = Ui_ControllerSettings()
-        self.ui.setupUi(self)
-        self.main_window = main_window
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(100)
-
-    def update(self):
-        if self.main_window.isControllerConnected:
-            self.ui.label_2.setText(self.main_window.ControllerName)
-            self.ui.label_2.setStyleSheet("color: rgb(255, 255, 255);")
-
-            self.ui.label_4.setText(f'{self.main_window.FrontBackAxis}%')
-            self.ui.label_6.setText(f'{self.main_window.LeftRightAxis}%')
-        else:
-            self.ui.label_2.setText("未接続")
-            self.ui.label_2.setStyleSheet("color: red")
-            self.ui.label_4.setText('0%')
-            self.ui.label_6.setText('0%')
-
-
-class BLEDialog(QDialog):
-    def __init__(self):
-        super().__init__()
-        self.ui = Ui_BLE()
-        self.ui.setupUi(self)
-
-
-def ShowBLE():
-    dialog = BLEDialog()
-    dialog.exec()
+from windows.AboutSoftware import AboutSoftware
+from windows.AutoScan import AutoScan
+from windows.ConnectError import ConnectError
+from windows.ControllerSettings import ControllerSettings
+from windows.BLE import BLE
 
 
 class MainWindow(QMainWindow):
@@ -183,6 +29,12 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.aboutSoftware = AboutSoftware()
+        self.autoScan = AutoScan(self)
+        self.connectError = ConnectError(self)
+        self.controllerSettings = ControllerSettings(self)
+        self.ble = BLE()
+
         self.ManualControl = False  # 是否启用手动控制
         self.isESPConnected = False  # ESP是否连接
 
@@ -224,17 +76,17 @@ class MainWindow(QMainWindow):
         self.ui.pushButton_3.clicked.connect(self.MapUpdate)
         self.ui.pushButton_4.clicked.connect(self.ESPConnect)
         self.ui.action.triggered.connect(self.SwitchFullScreen)
-        self.ui.action_4.triggered.connect(ShowAboutSoftwareDialog)
+        self.ui.action_4.triggered.connect(self.aboutSoftware.ShowAboutSoftwareDialog)
         self.ui.action_2.triggered.connect(self.close)
-        self.ui.pushButton_5.clicked.connect(self.ShowAutoScan)
-        self.ui.action_3.triggered.connect(self.ShowControllerSettings)
+        self.ui.pushButton_5.clicked.connect(self.autoScan.ShowAutoScan)
+        self.ui.action_3.triggered.connect(self.controllerSettings.ShowControllerSettings)
         self.Update_Connect_Status.connect(self.UpdateConnectStatus)
         self.Update_RSSI.connect(self.UpdateRSSI)
         self.Update_Interval.connect(self.UpdateInterval)
         self.Update_Command_Line.connect(self.UpdateCommandLine)
         self.Send_Command.connect(self.SendCommand)
         self.ui.pushButton_7.clicked.connect(self.Send_Command)
-        self.ui.pushButton_6.clicked.connect(ShowBLE)
+        self.ui.pushButton_6.clicked.connect(self.ble.ShowBLE)
 
     def SliderDataUpdate(self, no):
         """
@@ -312,12 +164,9 @@ class MainWindow(QMainWindow):
                 self.TCP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # TCP连接对象
                 self.TCP_SOCKET.settimeout(10)
                 self.TCP_SOCKET.connect((str(self.ui.lineEdit.text()), int(self.ui.lineEdit_2.text())))
-            except WindowsError as e:
-                print("2" + str(e))
-                self.ShowConnectError()
-            except socket.error as e:
-                print("a" + e)
-                self.ShowConnectError()
+            except OSError as e:
+                print(f"2{e}")
+                self.connectError.ShowConnectError()
             else:
                 self.ui.lineEdit.setEnabled(False)
                 self.ui.lineEdit_2.setEnabled(False)
@@ -375,8 +224,6 @@ class MainWindow(QMainWindow):
             except OSError as e:
                 print("4" + str(e))
                 self.Update_Connect_Status.emit(False)
-            except socket.error as e:
-                print(f"Socket error: {e}")
             except Exception as e:
                 print(f"Unexpected error: {e}")
 
@@ -407,36 +254,6 @@ class MainWindow(QMainWindow):
                 LastFrontBackAxis = self.FrontBackAxis
                 LastLeftRightAxis = self.LeftRightAxis
             time.sleep(0.1)
-
-    def ShowAutoScan(self):
-        """
-        ”自动扫描“弹窗的槽
-        :return:
-        """
-        dialog = AutoScan()
-        if dialog.exec() == QDialog.Accepted:
-            ip = dialog.GetIP()
-            self.ui.lineEdit.setText(ip)
-            self.ui.lineEdit_2.setText("7769")
-            self.ui.pushButton_4.click()
-
-    def ShowConnectError(self):
-        """
-        ”连接失败“弹窗的槽
-        :return:
-        """
-        dialog = ConnectError()
-        dialog.exec()
-        self.ui.lineEdit.setText("")
-        self.ui.lineEdit_2.setText("")
-
-    def ShowControllerSettings(self):
-        """
-            显示“手柄控制”窗口的槽
-            :return:
-        """
-        dialog = ControllerSettings(main_window=self)
-        dialog.exec()
 
     def UpdateConnectStatus(self, isConnected: bool):
         if isConnected:
