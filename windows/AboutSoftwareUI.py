@@ -70,7 +70,7 @@ class Ui_AboutSoftware(object):
         AboutSoftware.setWindowTitle(QCoreApplication.translate("AboutSoftware", u"\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306b\u3064\u3044\u3066", None))
         self.label.setText("")
         self.label_2.setText(QCoreApplication.translate("AboutSoftware", u"GPS Robot Project", None))
-        self.label_3.setText(QCoreApplication.translate("AboutSoftware", u"Alpha.0.1", None))
+        self.label_3.setText(QCoreApplication.translate("AboutSoftware", u"Alpha.0.2", None))
         self.label_4.setText(QCoreApplication.translate("AboutSoftware", u"  \u3053\u306e\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306f\u3001GPS\u30ed\u30dc\u30c3\u30c8\u7528\u306e\u30db\u30b9\u30c8\u30b3\u30f3\u30d4\u30e5\u30fc\u30bf\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u3067\u3059\u3002\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u306fMIT\u30e9\u30a4\u30bb\u30f3\u30b9\u306b\u57fa\u3065\u3044\u305f\u30aa\u30fc\u30d7\u30f3\u30bd\u30fc\u30b9\u3067\u3059", None))
         self.label_5.setText(QCoreApplication.translate("AboutSoftware", u"Designed by Wu in Fukuyama University", None))
         self.label_6.setText(QCoreApplication.translate("AboutSoftware", u"Team Members:Oki, Wu, Li, Jiang", None))

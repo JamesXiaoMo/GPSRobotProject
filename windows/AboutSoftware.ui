@@ -80,7 +80,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Alpha.0.1</string>
+    <string>Alpha.0.2</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_4">
