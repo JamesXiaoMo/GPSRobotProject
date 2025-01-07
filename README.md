@@ -18,4 +18,4 @@ Heathkit社が発売したHERO1ロボットを改造し、最新のGPS技術を�
 [🕹️モーター制御マイコン Arduino Mega](https://github.com/JamesXiaoMo/MotorControlArduino)
 
 ## 🖼️スクリーンショット
-<div align="left"><a href="https://github.com/JamesXiaoMo/GPSRobotProject/blob/master"><img src="/pics/screenshot.png" height="512" border="0"></a></div>
+<div align="left"><a href="https://github.com/JamesXiaoMo/GPSRobotProject/blob/master"><img src="https://github.com/JamesXiaoMo/GPSRobotProject/blob/master/pics/screenshot.png" height="512" border="0"></a></div>
